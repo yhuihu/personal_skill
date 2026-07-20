@@ -55,7 +55,18 @@ obdumper -h {host} -P {port} -u {user} -p {password} -D {database} --csv --table
 obloader -h {host} -P {port} -u {user} -p {password} -D {database} --ddl --csv -f {work_dir}
 ```
 
-### Step 5: 清理临时文件
+### Step 5: Harness 校验
+
+导入完成后自动执行验证，对比源表与目标表：
+
+| 校验项 | 方法 | 通过条件 |
+|--------|------|----------|
+| **行数** | `SELECT COUNT(*)` | 两表行数完全一致 |
+| **索引** | `SHOW INDEXES` | 索引名称、列、顺序、唯一性、类型完全一致 |
+
+校验失败时**不会回滚**（数据已导入），但退出码非 0，提示用户手动检查差异。
+
+### Step 6: 清理临时文件
 
 删除 `{work_dir}` 目录下的所有导出文件（可选，默认保留日志）。
 
@@ -82,12 +93,15 @@ obloader -h {host} -P {port} -u {user} -p {password} -D {database} --ddl --csv -
 
 ## 脚本参考
 
-技能所依赖的 `ob-copy-table.bat` 应存放在本目录下，内容结构：
+技能所依赖的脚本文件存放在本目录下：
 
-- 接收 `source_table`, `target_table`, `host`, `port`, `user`, `password`, `database` 参数
-- 设置 PATH 包含 `ext/windows/hadoop/bin`
-- 按上述 Step 1-5 顺序执行
-- 以退出码 0 表示成功，非 0 表示失败
+| 文件 | 作用 |
+|------|------|
+| `ob-copy-table.bat` | 主流程：导出 DDL → 导出 CSV → 替换表名 → 导入 → Harness 校验 → 清理 |
+| `replace_table_name.ps1` | 在 DDL 文件中将 `CREATE TABLE source` 替换为 `CREATE TABLE target` |
+| `harness.ps1` | 验证行数一致性和索引一致性，退出码 0 通过 / 非 0 失败 |
+
+`ob-copy-table.bat` 接收 `source_table`, `target_table`, `host`, `port`, `user`, `password`, `database` 参数，以退出码 0 表示成功，非 0 表示失败。
 
 ## 完成检查
 
@@ -96,5 +110,7 @@ obloader -h {host} -P {port} -u {user} -p {password} -D {database} --ddl --csv -
 - [ ] obdumper 导出 CSV 数据成功
 - [ ] DDL 中 `CREATE TABLE {source_table}` 已替换为 `CREATE TABLE {target_table}`
 - [ ] obloader 导入 DDL + 数据成功
+- [ ] Harness 校验：源表与目标表行数一致
+- [ ] Harness 校验：源表与目标表索引定义一致
 - [ ] 临时文件已清理（或告知用户位置）
-- [ ] 向用户输出复制结果摘要
+- [ ] 向用户输出复制结果摘要（含校验通过/失败）

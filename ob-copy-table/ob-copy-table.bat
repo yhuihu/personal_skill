@@ -91,14 +91,28 @@ if %ERRORLEVEL% neq 0 (
     exit /b %ERRORLEVEL%
 )
 
+REM --- Step 5: Harness 校验 ---
+echo.
+echo [5/5] 正在执行 Harness 校验 ...
+echo.
+powershell -ExecutionPolicy Bypass -File "%SCRIPT_DIR%harness.ps1" ^
+    -SourceTable "%SOURCE_TABLE%" -TargetTable "%TARGET_TABLE%" ^
+    -DbHost "%HOST%" -DbPort %PORT% -DbUser "%DB_USER%" -DbPass "%DB_PASS%" -DbName "%DATABASE%"
+
+set HARNESS_EXIT=%ERRORLEVEL%
+
 REM --- 清理 ---
 echo [完成] 清理临时文件 ...
 rmdir /s /q "%WORK_DIR%" 2>nul
 
 echo ========================================
-echo  ✅ 复制完成: %SOURCE_TABLE% -^> %TARGET_TABLE%
+if %HARNESS_EXIT% equ 0 (
+    echo  ✅ 复制完成: %SOURCE_TABLE% -^> %TARGET_TABLE% ^(校验通过^)
+) else (
+    echo  ⚠️  复制完成: %SOURCE_TABLE% -^> %TARGET_TABLE% ^(校验失败，请检查差异^)
+)
 echo ========================================
-exit /b 0
+exit /b %HARNESS_EXIT%
 
 :USAGE
 echo 用法: %~nx0 ^<原表名^> ^<目标表名^> ^<主机^> ^<端口^> ^<用户名^> ^<密码^> ^<数据库^>
